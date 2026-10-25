@@ -68,24 +68,49 @@ public class GridPanel extends JPanel {
     public boolean isRunning() { return timer != null && timer.isRunning(); }
 
     /**
-     * Starts animating the given search on the current grid.
-     *
-     * TODO (Justin): this is the animation loop.
-     *   1. If a timer is already running, stop it.
-     *   2. Save the finder in the field and call finder.init(grid).
-     *   3. Record the start time (System.nanoTime()) for the runtime stat.
-     *   4. Create a javax.swing.Timer with delayMs. On each tick:
-     *        - call finder.step()
-     *        - repaint()
-     *        - call statsListener.accept(...) with a line like
-     *          "BFS | expanded: 57 | path length: 23 | 4.1 ms"
-     *        - when finder.isDone(), stop the timer.
-     *   5. Start the timer.
-     *   Hint: path length is finder.path().size() - 1 (edges, not cells),
-     *   and show "no path" when !finder.foundPath().
+     * Animates the given search one step per timer tick, updating the stats
+     * label as it goes. Any search already running is stopped first.
      */
     public void run(PathFinder newFinder) {
-        // your code here
+        if (timer != null) {
+            timer.stop();
+        }
+
+        finder = newFinder;
+        finder.init(grid);
+
+        final long[] searchNanos = {0};
+
+        timer = new Timer(delayMs, e -> {
+            long t0 = System.nanoTime();
+            finder.step();
+            searchNanos[0] += System.nanoTime() - t0;
+
+            repaint();
+            statsListener.accept(formatStats(searchNanos[0]));
+
+            if (finder.isDone()) {
+                timer.stop();
+            }
+        });
+        timer.start();
+    }
+
+    /** Builds the stats line, e.g. "BFS | expanded: 57 | path length: 23 | 0.41 ms". */
+    private String formatStats(long nanos) {
+        String pathText;
+
+        if (!finder.isDone()) {
+            pathText = "searching...";
+        } else if (finder.foundPath()) {
+            pathText = "path length: " + (finder.path().size() - 1);
+        } else {
+            pathText = "no path";
+        }
+
+        return String.format("%s | expanded: %d | %s | %.2f ms",
+                finder.name(), finder.nodesExpanded(), pathText,
+                nanos / 1_000_000.0);
     }
 
     public void clearSearch() {
