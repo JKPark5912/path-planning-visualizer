@@ -72,17 +72,29 @@ public class Grid {
     }
 
     /**
-     * Returns the cells you can move to from p in one step:
-     * up, down, left, right, staying in bounds and skipping walls.
-     *
-     * TODO (Justin): implement this.
-     *   - Check the 4 directions (no diagonals for now).
-     *   - Use inBounds(...) and skip any cell whose type is WALL.
-     *   - Keep a FIXED order (e.g. up, right, down, left) so runs are reproducible.
+     *  Returns the cells reachable from p in one move (up, right, down, left),
+     *  skipping walls and cells outside the grid. Order is fixed so search runs
+     *  are reproducible.
      */
     public List<Point> neighbors(Point p) {
         List<Point> result = new ArrayList<>();
-        // your code here
+
+        int[][] dirs = {
+                {-1, 0},  // Up
+                {0, 1},   // Right
+                {1, 0},   // Down
+                {0, -1}   // Left
+        };
+
+        for (int[] dir : dirs) {
+            int row = p.y + dir[0];
+            int col = p.x + dir[1];
+
+            if (inBounds(row, col) && cells[row][col] != CellType.WALL) {
+                result.add(new Point(col, row));
+            }
+        }
+
         return result;
     }
 }
