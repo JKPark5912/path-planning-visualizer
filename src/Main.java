@@ -1,4 +1,6 @@
+import algo.AStar;
 import algo.BFS;
+import algo.Dijkstra;
 import algo.PathFinder;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -24,9 +26,11 @@ public class Main {
         Grid grid = new Grid(25, 40);
         GridPanel panel = new GridPanel(grid);
 
-        // Algorithms available in the dropdown. Add Dijkstra and A* here later.
+        // Algorithms available in the dropdown.
         Map<String, Supplier<PathFinder>> algorithms = new LinkedHashMap<>();
         algorithms.put("BFS", BFS::new);
+        algorithms.put("Dijkstra", Dijkstra::new);
+        algorithms.put("A*", AStar::new);
 
         JComboBox<String> choice = new JComboBox<>(algorithms.keySet().toArray(new String[0]));
         JButton run = new JButton("Run");
