@@ -1,6 +1,7 @@
 package ui;
 
 import algo.PathFinder;
+import graph.GridGraph;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -33,7 +34,7 @@ public class GridPanel extends JPanel {
     private static final Color LINES = new Color(220, 220, 220);
 
     private final Grid grid;
-    private PathFinder finder;          // the search currently being shown (may be null)
+    private PathFinder<Point> finder;   // the search currently being shown (may be null)
     private Timer timer;                // drives the animation
     private int delayMs = 20;           // time between steps
     private Consumer<String> statsListener = s -> { };
@@ -71,13 +72,13 @@ public class GridPanel extends JPanel {
      * Animates the given search one step per timer tick, updating the stats
      * label as it goes. Any search already running is stopped first.
      */
-    public void run(PathFinder newFinder) {
+    public void run(PathFinder<Point> newFinder) {
         if (timer != null) {
             timer.stop();
         }
 
         finder = newFinder;
-        finder.init(grid);
+        finder.init(new GridGraph(grid));
 
         final long[] searchNanos = {0};
 

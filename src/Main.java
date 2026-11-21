@@ -4,6 +4,7 @@ import algo.Dijkstra;
 import algo.PathFinder;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Point;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -27,7 +28,7 @@ public class Main {
         GridPanel panel = new GridPanel(grid);
 
         // Algorithms available in the dropdown.
-        Map<String, Supplier<PathFinder>> algorithms = new LinkedHashMap<>();
+        Map<String, Supplier<PathFinder<Point>>> algorithms = new LinkedHashMap<>();
         algorithms.put("BFS", BFS::new);
         algorithms.put("Dijkstra", Dijkstra::new);
         algorithms.put("A*", AStar::new);

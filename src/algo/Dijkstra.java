@@ -1,19 +1,17 @@
 package algo;
 
-import java.awt.Point;
-
 /**
- * Dijkstra's algorithm: A* with a heuristic of zero, so cells are expanded
- * purely by distance from the start, with no pull toward the goal.
+ * Dijkstra's algorithm: A* with a heuristic of 0, so it expands nodes purely
+ * in order of cost from the start.
  */
-public class Dijkstra extends AStar {
+public class Dijkstra<N> extends AStar<N> {
     @Override
     public String name() {
         return "Dijkstra";
     }
 
     @Override
-    protected int heuristic(Point p) {
+    protected double heuristic(N node) {
         return 0;
     }
 }

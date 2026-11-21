@@ -1,6 +1,6 @@
 package algo;
 
-import java.awt.Point;
+import graph.SearchGraph;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,31 +10,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import model.Grid;
 
 /**
- * Breadth-first search on a grid. Cells are explored in rings of increasing
- * distance from the start, so the first time the goal is reached, the path
- * found is a shortest path (every move costs 1).
- *
- * <p>The search advances one cell per call to {@link #step()} so the UI can
- * animate it.
+ * Breadth-first search on any SearchGraph. Nodes are explored in rings of
+ * increasing hop count from the start, so the first time the goal is reached,
+ * the path found has the fewest edges. Edge costs are ignored: BFS minimizes
+ * hops, not distance.
  */
-public class BFS implements PathFinder {
-    private Grid grid;
-    /** Cells discovered but not yet expanded, in first-in, first-out order. */
-    private final ArrayDeque<Point> queue = new ArrayDeque<>();
-    /** Cells that have been removed from the queue and expanded. */
-    private final Set<Point> visited = new HashSet<>();
-    /**
-     * Cells that have ever been added to the queue. Marking cells here when
-     * they are queued (not when they are expanded) guarantees each cell is
-     * queued at most once.
-     */
-    private final Set<Point> discovered = new HashSet<>();
-    /** Maps each discovered cell to the cell it was first reached from. */
-    private final Map<Point, Point> parent = new HashMap<>();
-    private List<Point> path = new ArrayList<>();
+public class BFS<N> implements PathFinder<N> {
+    private SearchGraph<N> graph;
+    private final ArrayDeque<N> queue = new ArrayDeque<>();
+    private final Set<N> visited = new HashSet<>();
+    /** Marked when queued, not when expanded, so each node is queued at most once. */
+    private final Set<N> discovered = new HashSet<>();
+    private final Map<N, N> parent = new HashMap<>();
+    private List<N> path = new ArrayList<>();
     private boolean done;
     private boolean found;
 
@@ -43,13 +33,9 @@ public class BFS implements PathFinder {
         return "BFS";
     }
 
-    /**
-     * Clears any state left over from a previous run and seeds the queue with
-     * the start cell, so the same BFS object can be reused across runs.
-     */
     @Override
-    public void init(Grid grid) {
-        this.grid = grid;
+    public void init(SearchGraph<N> graph) {
+        this.graph = graph;
         queue.clear();
         visited.clear();
         discovered.clear();
@@ -58,93 +44,55 @@ public class BFS implements PathFinder {
         done = false;
         found = false;
 
-        queue.add(grid.start());
-        discovered.add(grid.start());
+        queue.add(graph.start());
+        discovered.add(graph.start());
     }
 
-    /**
-     * Expands the next cell in the queue. If it is the goal, the search ends
-     * and the path is built; otherwise each undiscovered neighbor is recorded
-     * with its parent and added to the back of the queue.
-     *
-     * @return true if the search has finished (goal found or queue empty)
-     */
     @Override
     public boolean step() {
         if (done) {
             return true;
         }
-
         if (queue.isEmpty()) {
             done = true;
             found = false;
             return true;
         }
 
-        Point cur = queue.poll();
+        N cur = queue.poll();
         visited.add(cur);
 
-        if (cur.equals(grid.goal())) {
+        if (cur.equals(graph.goal())) {
             done = true;
             found = true;
             buildPath();
             return true;
         }
 
-        for (Point n : grid.neighbors(cur)) {
+        for (SearchGraph.Edge<N> edge : graph.neighbors(cur)) {
+            N n = edge.to();
             if (!discovered.contains(n)) {
                 discovered.add(n);
                 parent.put(n, cur);
                 queue.add(n);
             }
         }
-
         return false;
     }
 
-    /**
-     * Rebuilds the start-to-goal path by following parent links backward
-     * from the goal. The start has no parent, so the walk stops there; the
-     * list is then reversed so it runs from start to goal.
-     */
     private void buildPath() {
-        Point cur = grid.goal();
-
+        N cur = graph.goal();
         while (cur != null) {
             path.add(cur);
             cur = parent.get(cur);
         }
-
         Collections.reverse(path);
     }
 
-    @Override
-    public boolean isDone() {
-        return done;
-    }
-
-    @Override
-    public boolean foundPath() {
-        return found;
-    }
-
-    @Override
-    public Set<Point> visited() {
-        return visited;
-    }
-
-    @Override
-    public Collection<Point> frontier() {
-        return queue;
-    }
-
-    @Override
-    public List<Point> path() {
-        return path;
-    }
-
-    @Override
-    public int nodesExpanded() {
-        return visited.size();
-    }
+    @Override public boolean isDone() { return done; }
+    @Override public boolean foundPath() { return found; }
+    @Override public Set<N> visited() { return visited; }
+    @Override public Collection<N> frontier() { return queue; }
+    @Override public List<N> path() { return path; }
+    @Override public int nodesExpanded() { return visited.size(); }
 }

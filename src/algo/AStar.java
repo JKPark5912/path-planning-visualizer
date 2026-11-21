@@ -1,6 +1,6 @@
 package algo;
 
-import java.awt.Point;
+import graph.SearchGraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -10,29 +10,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import model.Grid;
 
 /**
- * A* search: expands the cell with the lowest f = g + h, where g is the
- * steps taken so far and h estimates the steps remaining. With an
+ * A* search on any SearchGraph: expands the node with the lowest f = g + h,
+ * where g is the cost so far and h estimates the cost remaining. With an
  * admissible heuristic (one that never overestimates), the path found is
  * a shortest path.
  */
-public class AStar implements PathFinder {
-    /** One queue entry: a cell, its f = g + h, and its g. */
-    private record Entry(Point p, int f, int g) {}
+public class AStar<N> implements PathFinder<N> {
+    /** One queue entry: a node, its f = g + h, and its g. (changed: generic, double costs) */
+    private record Entry<N>(N node, double f, double g) {}
 
-    protected Grid grid;
-    /** Cells waiting to be expanded, lowest f first; ties go to larger g. */
-    private final PriorityQueue<Entry> open = new PriorityQueue<>(
-        (a, b) -> a.f() != b.f()
-            ? Integer.compare(a.f(), b.f())   // lower f first
-            : Integer.compare(b.g(), a.g())); // tie: larger g (closer to goal) first
-    private final Set<Point> visited = new HashSet<>();
-    /** Best known number of steps from the start to each cell. */
-    private final Map<Point, Integer> gScore = new HashMap<>();
-    private final Map<Point, Point> parent = new HashMap<>();
-    private List<Point> path = new ArrayList<>();
+    protected SearchGraph<N> graph;
+    /** Nodes waiting to be expanded, lowest f first; ties go to larger g. */
+    private final PriorityQueue<Entry<N>> open = new PriorityQueue<>(
+            (a, b) -> a.f() != b.f()
+                    ? Double.compare(a.f(), b.f())   // lower f first
+                    : Double.compare(b.g(), a.g())); // tie: larger g (closer to goal) first
+    private final Set<N> visited = new HashSet<>();
+    /** Lowest known cost from the start to each node. */
+    private final Map<N, Double> gScore = new HashMap<>();
+    private final Map<N, N> parent = new HashMap<>();
+    private List<N> path = new ArrayList<>();
     private boolean done;
     private boolean found;
 
@@ -42,22 +41,17 @@ public class AStar implements PathFinder {
     }
 
     /**
-     * Manhattan distance from p to the goal: the fewest moves possible on a
-     * 4-direction grid with no walls. It never overestimates, so A* still
-     * finds a shortest path. Subclasses can override this (Dijkstra uses 0).
+     * Estimated cost from node to the goal. (changed) The graph supplies it,
+     * since only the graph knows its geometry. Dijkstra overrides this with 0.
      */
-    protected int heuristic(Point p) {
-        Point g = grid.goal();
-        return Math.abs(p.x - g.x) + Math.abs(p.y - g.y);
+    protected double heuristic(N node) {
+        return graph.heuristic(node);
     }
 
-    /**
-     * Clears state from any previous run, then seeds the search with the
-     * start cell at cost 0.
-     */
+    /** Clears state from any previous run, then seeds the search with the start at cost 0. */
     @Override
-    public void init(Grid grid) {
-        this.grid = grid;
+    public void init(SearchGraph<N> graph) {
+        this.graph = graph;
 
         open.clear();
         visited.clear();
@@ -68,15 +62,15 @@ public class AStar implements PathFinder {
         done = false;
         found = false;
 
-        gScore.put(grid.start(), 0);
-        open.add(new Entry(grid.start(), heuristic(grid.start()), 0));
+        gScore.put(graph.start(), 0.0);
+        open.add(new Entry<>(graph.start(), heuristic(graph.start()), 0.0));
     }
 
     /**
-     * Expands the open cell with the lowest f. Java's PriorityQueue cannot
-     * lower an entry's priority, so a cell reached by a shorter route is
-     * simply added again; stale copies are skipped when they reach the
-     * front (lazy deletion).
+     * Expands the open node with the lowest f. Java's PriorityQueue cannot
+     * lower an entry's priority, so a node reached by a cheaper route is
+     * added again; stale copies are skipped when they reach the front
+     * (lazy deletion).
      *
      * @return true if the search has finished (goal found or nothing left)
      */
@@ -86,7 +80,7 @@ public class AStar implements PathFinder {
             return true;
         }
 
-        while (!open.isEmpty() && visited.contains(open.peek().p())) {
+        while (!open.isEmpty() && visited.contains(open.peek().node())) {
             open.poll();
         }
 
@@ -96,37 +90,35 @@ public class AStar implements PathFinder {
             return true;
         }
 
-        Entry e = open.poll();
-        Point cur = e.p();
+        N cur = open.poll().node();
         visited.add(cur);
 
-        if (cur.equals(grid.goal())) {
+        if (cur.equals(graph.goal())) {
             done = true;
             found = true;
             buildPath();
             return true;
         }
 
-        int curG = gScore.get(cur);
-        for (Point n : grid.neighbors(cur)) {
-            int newG = curG + 1;
+        double curG = gScore.get(cur);
+        // changed: each edge carries its own cost instead of every move costing 1
+        for (SearchGraph.Edge<N> edge : graph.neighbors(cur)) {
+            N n = edge.to();
+            double newG = curG + edge.cost();
 
-            if (newG < gScore.getOrDefault(n, Integer.MAX_VALUE)) {
+            if (newG < gScore.getOrDefault(n, Double.POSITIVE_INFINITY)) {
                 gScore.put(n, newG);
                 parent.put(n, cur);
-                open.add(new Entry(n, newG + heuristic(n), newG));
+                open.add(new Entry<>(n, newG + heuristic(n), newG));
             }
         }
 
         return false;
     }
 
-    /**
-     * Rebuilds the start-to-goal path by following parent links backward
-     * from the goal, then reversing.
-     */
+    /** Rebuilds the start-to-goal path by following parent links back from the goal. */
     private void buildPath() {
-        Point cur = grid.goal();
+        N cur = graph.goal();
 
         while (cur != null) {
             path.add(cur);
@@ -147,21 +139,21 @@ public class AStar implements PathFinder {
     }
 
     @Override
-    public Set<Point> visited() {
+    public Set<N> visited() {
         return visited;
     }
 
     @Override
-    public Collection<Point> frontier() {
-        List<Point> pts = new ArrayList<>();
-        for (Entry e : open) {
-            pts.add(e.p());
+    public Collection<N> frontier() {
+        List<N> nodes = new ArrayList<>();
+        for (Entry<N> e : open) {
+            nodes.add(e.node());
         }
-        return pts;
+        return nodes;
     }
 
     @Override
-    public List<Point> path() {
+    public List<N> path() {
         return path;
     }
 
